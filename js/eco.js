@@ -9,15 +9,21 @@ function clone(object)
 	OneShotConstructor.prototype = object;
 	return new OneShotConstructor();
 }
+
+//returns a random number between min and max
 function rand(min, max) 
 {
 	return Math.random() * (max-min) + min;
 }
+
+//rounds to specified number of decimal places 
 function round(number, decimals) 
 {
 	var x10 = Math.pow(10, decimals);
 	return Math.round(number*x10)/x10;
 }
+
+//creates empty 2D array of size toRange by toRange
 function arrayRange(toRange)
 {
 	var target = [];
@@ -27,6 +33,8 @@ function arrayRange(toRange)
 		
 	return target;
 }
+
+//return positive or negative one, depending on whether input values is positive or negative
 function sign(value)
 {
 	if (value < 0)
@@ -78,6 +86,9 @@ var GrassGene = {
 	'growthRate': 		[0.0075, 0.25],
 	'decayRate': 		[0.0001]
 };
+
+//whenever this is referenced, remember that SpecieGene[i][1] refers to the pair
+//of numbers next to the i-th gene name (ie. SpecieGene[2][1] == [5,40])
 var SpecieGene = [
 	['lifeSpan', 			[50, 500]],
 	['size', 				[1, 50]],
@@ -103,9 +114,11 @@ var Settings = {
 
 function World()
 {	
+	
+	//three 2D arrays of size 200x200, each representing the position of grass, of a creature, and of flag to be drawn
 	this.grassMap = arrayRange(World.height);
 	this.speciesMap = arrayRange(World.height);
-	this.entitiesMap = arrayRange(World.height);
+	this.entitiesMap = arrayRange(World.height);  //contains flags
 	
 	this.specieCount = 0;
 	this.speciesBorn = 0;
@@ -143,9 +156,11 @@ World.prototype = {
 		{
 			for (var x = 0; x < World.width; x++)
 			{
+				//generates grass on every square on map
 				this.grassMap[y][x] = new Grass();
-				this.entitiesMap[y][x] = this.grassMap[y][x].getFlag();
-				
+				this.entitiesMap[y][x] = this.grassMap[y][x].getFlag();  //gives entity map the state of the grass
+
+				//make sure there are no creatures out to start (or just remove all creatures if reset is called)
 				if (this.speciesMap[y][x] !== undefined)
 					this.speciesMap[y][x] = undefined;
 			}
@@ -161,6 +176,7 @@ World.prototype = {
 				this.grassMap[y][x].step();
 		}
 
+		//Update each creature's position to simulate movement
 		for (var y = 0; y < World.height; y++)
 		{
 			for (var x = 0; x < World.width; x++)
@@ -174,13 +190,15 @@ World.prototype = {
 		{
 			for (var x = 0; x < World.width; x++)
 			{
+				//remove dead creatures from the map
 				if (this.speciesMap[y][x] !== undefined)
 				{
 					if (this.speciesMap[y][x].step() === false)
 						this.removeSpecie(this.speciesMap[y][x], true);
 				}
-					
-				if ((this.entitiesMap[y][x] & this.grassMap[y][x]) === 0)
+
+				//update the color flags in the entities map
+				if ((this.entitiesMap[y][x] & this.grassMap[y][x]) === 0)   //what does this bitwise op do?
 				{
 					if (this.entitiesMap[y][x] <= Flags.RottenVeg)
 						this.entitiesMap[y][x] = this.grassMap[y][x].getFlag();
@@ -190,7 +208,7 @@ World.prototype = {
 			}
 		}
 		
-		return this.entitiesMap;
+		return this.entitiesMap;   //everything is drawn with the entities map
 	},
 	
 	addSpecie: function(specie, firstCall, isSpawned)
@@ -204,8 +222,8 @@ World.prototype = {
 		if (firstCall && specie.born)
 			this.speciesBorn++;
 
-		this.speciesMap[specie.posY][specie.posX] = specie;
-		this.entitiesMap[specie.posY][specie.posX] |= specie.type;
+		this.speciesMap[specie.posY][specie.posX] = specie;        //adds newly created creature into physical map
+		this.entitiesMap[specie.posY][specie.posX] |= specie.type; //the type is all that is added to entities map
 	},
 	
 	removeSpecie: function(specie, isDead)
@@ -225,13 +243,16 @@ World.prototype = {
 			else
 				this.speciesSpawned--;
 		}
-	
+
+		//when creature is removed (dies), it fertilizes the grass it was standing on
 		this.grassMap[specie.posY][specie.posX].fertilize(amount);
 	},		
-	
+
+	//next three functions are generic getter functions that return properties at specific squares on map
+
 	getFlag: function(posX, posY)
 	{
-		return this.entitiesMap[posY][posX];
+		return this.entitiesMap[posY][posX];  //flags are on entities map
 	},
 	
 	getGrass: function(posX, posY)
@@ -245,7 +266,8 @@ World.prototype = {
 	}
 };
 
-jsEco = new function()
+//here is where everything really starts
+var jsEco = new function()
 {
 	var globalCanvas = undefined;
 	var zoomCanvas = undefined;
@@ -265,10 +287,10 @@ jsEco = new function()
 		
 		setEventHandlers();
 		
-		world = new World(200, 200); // globalCanvas.width, globalCanvas.height
+		world = new World(200,200); // globalCanvas.width, globalCanvas.height (these parameters aren't actually needed)
 		view = new View(globalCanvas.getContext('2d'), zoomCanvas.getContext('2d'), World.width, World.height);
 
-		interval = setInterval(step, 1000/Settings.FPS);
+		interval = setInterval(step, 1000/Settings.FPS);  //CALLS STEP FUNCTION REPEATEDLY, ANIMATING THE MAPS
 	};
 	
 	this.getWorldFlag = function(posX, posY)
@@ -380,10 +402,12 @@ jsEco = new function()
 	
 	function spawnSpecieGroup(amount)
 	{
+		//point to roughly the center coordinates of the zoomRect
 		var zoomRectPos = view.getZoomRectPos();
 		var posX = zoomRectPos[0] + 12;
 		var posY = zoomRectPos[1] + 12;
-		
+
+		//spawning occurs within a 10x10 square centered at (posX, posY)
 		var minX = (posX - 5 < 0) ? 0 : posX - 5;
 		var minY = (posY - 5 < 0) ? 0 : posY - 5;
 		var maxX = (posX + 5 >= World.width) ? World.width : posX + 5;
@@ -393,6 +417,7 @@ jsEco = new function()
 		
 		for (var i = 0; i < amount; i++)
 		{
+			//spawn points are kept within the 10x10 square
 			var spawnX = Math.floor(rand(minX, maxX));
 			var spawnY = Math.floor(rand(minY, maxY));
 			
@@ -403,7 +428,9 @@ jsEco = new function()
 			jsEco.addWorldSpecie(new Herbivore(Genome.getMutation(specieGenome), spawnX, spawnY, false), true, true);
 		}
 	}
-	
+
+	//moves the Zoom rectangle on the minimap depending on the arrow key that's pressed
+	//gives parameters to View.updateZoomRect(...)
 	function updateZoomRect(keyCode)
 	{
 		var speed = Settings.zoomRectMovementSpeed;
@@ -431,10 +458,11 @@ jsEco = new function()
 		
 		view.updateZoomRect(posX, posY, true);
 	}
-	
+
+	//this function is what "animates" the entire application. First part updates canvases, and second part updates html text
 	function step()
 	{
-		// Draw call is located here!
+		// Draw call is located here! sends the entity array to view.draw()
 		drawCalls += view.draw(world.update());
 		
 		frameCount++;
@@ -463,7 +491,7 @@ jsEco = new function()
 		}
 	}
 }
-
+//gives an array of genes + values to whatever object calls this
 function Genome(genes) 
 {
 	if (genes === undefined)
@@ -474,10 +502,12 @@ function Genome(genes)
 
 	for (var i = 0; i < SpecieGene.length; i++)
 	{
-		this[SpecieGene[i][0]] = genes[SpecieGene[i][0]];
+		this[SpecieGene[i][0]] = genes[SpecieGene[i][0]];  //function creates own list of specie gene names
 	}
 }
 
+//generates new 'genes' which are string of random numbers taken from the SpecieGene array
+//and uses them to return a new Genome object
 Genome.getRandom = function()
 {
 	var newGenes = {};
@@ -491,6 +521,9 @@ Genome.getRandom = function()
 	
 	return new Genome(newGenes);
 }
+
+//simulates the crossing of genes when two species reproduce. The degree
+//to which the genes are split depends on the crossOverPoint
 Genome.getCrossOver = function(specieA, specieB)
 {
 	var crossOverPoint = Math.floor(rand(0, SpecieGene.length));
@@ -500,7 +533,7 @@ Genome.getCrossOver = function(specieA, specieB)
 	
 	for (i = 0; i < crossOverPoint; i++)
 	{
-		geneName = SpecieGene[i][0];
+		geneName = SpecieGene[i][0];  //one of the strings in SpecieGene
 		newGenes[geneName] = specieA[geneName];
 	}
 	
@@ -512,6 +545,8 @@ Genome.getCrossOver = function(specieA, specieB)
 	
 	return new Genome(newGenes);
 }
+
+//returns a genome that has slight mutations from the genome in the parameter
 Genome.getMutation = function(oldGenome)
 {
 	var newGenes = {};
@@ -544,6 +579,9 @@ Genome.getMutation = function(oldGenome)
 }
 
 Genome.prototype = {
+
+	//determines if the genes of the genome calling this function has a low enough numerical difference
+	//between the gene values of the parameter genome. If so, they are considered the same species
 	isSameSpecies: function(otherGenome)
 	{
 		var varience = 0;
@@ -563,6 +601,7 @@ Genome.prototype = {
 	}
 }
 
+//the actual creatures moving around on the map (currently all herbivores)
 function Specie(genome, posX, posY, born)
 {
 	this.genome = genome;
@@ -578,7 +617,8 @@ function Specie(genome, posX, posY, born)
 	
 	this.isMoving = false;
 	this.isSick = false;
-	
+
+	//the bias towards each square surrounding the creature (affecting where it will move)
 	this.movementBias = arrayRange(3); // [3,3]
 	
 	this.flag = 0;
@@ -590,6 +630,8 @@ function Specie(genome, posX, posY, born)
 		this.nextReproductionAge = Math.floor(this.genome.lifeSpan) + 1;
 }
 Specie.prototype = {
+
+	//calls the methods that make the creatures change locations
 	move: function()
 	{
 		if (this.isMoving)
@@ -597,9 +639,11 @@ Specie.prototype = {
 			
 		this.isMoving = true;
 		this.search();
-		this.act(); // Inheritor
+		this.act(); // Inheritor (defined by subclasses)
 	},
-	
+
+	//called every time World.update() is called
+	//simulates aging/passing of time on creatures
 	step: function()
 	{
 		this.age++;
@@ -609,12 +653,12 @@ Specie.prototype = {
 		
 		if (this.isSick)
 		{
-			this.sickNess++;
+			this.sickNess++;   //sickness levels go up as long as creature is sick
 			decreaseFoodWith = (this.genome.hungerRate * (this.genome.sickRate + 1)) * this.genome.size;
 			
 			if (this.sickNess >= (this.genome.sickRate/4.3) * this.genome.lifeSpan)
 			{
-				this.isSick = false;
+				this.isSick = false;  //stops being sick when sickness level finally reaches certain point
 				this.sickNess = 0;
 				
 				this.flag = this.type;
@@ -623,38 +667,40 @@ Specie.prototype = {
 			}
 		}
 
-		this.food -= decreaseFoodWith;
+		this.food -= decreaseFoodWith;  //over time, creature gets hungrier (even more so when sick)
 		
-		if (this.age >= Math.floor(this.genome.lifeSpan) || this.food <= 0)
+		if (this.age >= Math.floor(this.genome.lifeSpan) || this.food <= 0)   //check if it has starved or gotten too old
 		{
 			// #TODO: This is herbivores specific code
 			if (this.isSick)
 			{
-				jsEco.changeWorldSickHerbivores(-1);
+				jsEco.changeWorldSickHerbivores(-1);  //if it was sick when it died, then sickness count must decrement
 			}
 			
-			return false;
+			return false;   //a false return means creature has died
 		}
 			
-		return true;
+		return true;        //if still has food and has not passed life span, then it's still alive
 	},
-	
+
+	//It doesn't look like this method is ever used....
 	findOpenSpace: function()
 	{
 		var openSpaceCount = 1;
 		var newX = 0;
 		var newY = 0;
-		
+
+		//creature checks the four directions around its current position
 		for (var x = this.posX - 1; x <= this.posX + 1; x++)
 		{
 			for (var y = this.posY - 1; y <= this.posY + 1; y++)
 			{
 				if (x < 0 || y < 0 || x > World.width || y > World.height)
-					continue;
+					continue; //obviously the creature can't move beyond the map, so keeps searching
 				
-				if (jsEco.getWorldFlag(x, y) <= GridFlags.RottenVeg)
+				if (jsEco.getWorldFlag(x, y) <= GridFlags.RottenVeg)  //is this the right kind of space to move on?
 				{
-					if (rand(0, 1) < 1 / openSpaceCount++)
+					if (rand(0, 1) < 1 / openSpaceCount++)  // a way to randomize whether creature moves or stays put
 					{
 						newX = x;
 						newY = y;
@@ -665,29 +711,35 @@ Specie.prototype = {
 		
 		return (newX !== 0 && newY !== 0) ? [newX, newY] : false;
 	},
-	
+
+	//gets coordinates of new square that species will move to
+	//does this by comparing corresponding values in movementBias array
 	getNextSpace: function()
 	{
 		var newX = this.posX;
 		var newY = this.posY;
 		
 		var openSpaceCount = 1;
-		var bestBias = (3.402823e-38);
-		
+		var bestBias = (3.402823e-38);  //represents the best available option for creature to take (not sure why doesn't start at 0)
+
+		//go through the eight squares surrounding the creature, as well as the square it's standing on currently
 		for (var x = 0; x < 3; x++)
 		{
 			for (var y = 0; y < 3; y++)
 			{
+				//the actual world map positions corresponding the creature's surrounding squares
 				var gridX = this.posX + x - 1;
 				var gridY = this.posY + y - 1;
 				
 				if (gridX < 0 || gridY < 0 || gridX >= World.width || gridY >= World.height)
-					continue;
-				
+					continue;  //again, can't break world borders
+
+				//checks for the bias value of the adjacent square and updates bestBias if this square has a better bias
 				if (this.movementBias[x][y] >= bestBias)
 				{
 					if (this.movementBias[x][y] == bestBias)
 					{
+						//if more than one spaces have same bias, randomly decide if its coordinates replace others
 						if (rand(0, 1) >= 1 / openSpaceCount++)
 							continue;
 					}
@@ -703,9 +755,10 @@ Specie.prototype = {
 			}
 		}
 		
-		return [newX, newY];
+		return [newX, newY];  //these are the square coordinates the creature will move to
 	},
-	
+
+	//return coordinates of an empty space adjacent to the creature
 	getEmptySpace: function()
 	{
 		var openSpaceCount = 1;
@@ -746,7 +799,7 @@ Specie.prototype = {
 		var emptySpace = this.getEmptySpace();
 		
 		if (emptySpace === false)
-			return false;
+			return false;  // no room for new creature to be born
 		
 		var newGenome = Genome.getCrossOver(this.genome, targetSpecie.genome);
 		
@@ -765,11 +818,14 @@ Specie.prototype = {
 			
 		return false;
 	},
-	
+
+	//the biases found in each searchable spot is sent to movementBias array
 	search: function()
 	{
-		this.resetMovementBias();
-		
+		this.resetMovementBias();  //previous movement biases cleared once in new spot
+
+		//search extends as far as the creature's sightRange
+		//the overall search is done in a diamond-shaped area of squares
 		for (var y = this.posY - Math.floor(this.genome.sightRange); y <= this.posY + Math.floor(this.genome.sightRange); y++)
 		{
 			var width = Math.floor(this.genome.sightRange) - Math.abs(this.posY - y);
@@ -777,22 +833,27 @@ Specie.prototype = {
 			for (var x = this.posX - width; x <= this.posX + width; x++)
 			{
 				if ((this.posX === x && this.posY === y) || x < 0 || x >= World.width || y < 0 || y >= World.height)
-					continue;
-				
+					continue;  //disregard creature's own space as well as spaces out of bounds
+
+				//distance of coordinates from the creature's coordinates
 				var distX = Math.abs(x - this.posX);
 				var distY = Math.abs(y - this.posY);
 				
-				var bias = this.getBias(x, y);
+				var bias = this.getBias(x, y);  //get bias generated by square
 				
 				if (bias == 0)
 					continue;
-				
+
+				//bias generated from a square is cut down by its distance from the creature
 				var biasX = (distX != 0) ? bias/distX : 0;
 				var biasY = (distY != 0) ? bias/distY : 0;
-				
+
+				//estimates the closest square adjacent to the creature in relation to the square it has searched
+				//and gives an index in terms of the square's position in the movementBias array
 				var indexX = sign(x - this.posX) + 1;
 				var indexY = sign(y - this.posY) + 1;
-				
+
+				//the final biases are applied to the movementBias array
 				if (distX >= distY)
 					this.movementBias[indexX][1] += biasX;
 				
@@ -819,32 +880,42 @@ Specie.prototype = {
 	}
 };
 
+//HERBIVORE IS BASICALLY A SUBCLASS OF SPECIES
 function Herbivore(genome, posX, posY, born)
 {
-	Specie.call(this, genome, posX, posY, born);
+	Specie.call(this, genome, posX, posY, born);  //call Specie constructor, where all instances of 'this' now refer to Herbivore object
 	
-	this.food = this.maxFood * 0.5;
+	this.food = this.maxFood * 0.5;  //herbivores all start at halfway hunger
 	
 	this.type = Flags.Herbivore;
 	this.flag = this.type;
 }
-Herbivore.prototype = clone(Specie.prototype);
+Herbivore.prototype = clone(Specie.prototype);   //Herbivore gets all of Specie's prototype methods/variables
 
+//the bias is the likelihood that an herbivore will move to a certain space
+//this method gets the bias at the space in the specified coordinates
 Herbivore.prototype.getBias = function(posX, posY)
 {
 	var grass = jsEco.getWorldGrass(posX, posY);
 
+	//the bias generated by the grass at (posX, posY) depends on
+	//how much food the grass has as well as how hungry the herbivore is
 	var bias = 2 * (grass.foodValue / GrassGene.maxFoodValue) * (1 - this.food / this.maxFood);
-	
+
+	//presence of another creature in space also affects bias
+
 	var specie = jsEco.getWorldSpecie(posX, posY);
 	
 	if (specie === undefined)
 		return bias;
-	
+
+	//if the space does contain another creature...
+
 	if (specie.type === this.type && this.genome.isSameSpecies(specie.genome))
 	{
 		bias += this.genome.herdBias;
-		
+
+		//herbivore will be more inclined to seek out a space with a potential mate
 		if (this.canReproduce() && specie.canReproduce())
 			bias += 4;
 	}
@@ -861,11 +932,12 @@ Herbivore.prototype.getBias = function(posX, posY)
 }
 Herbivore.prototype.act = function()
 {
-	var nextSpace = this.getNextSpace();
+	//FIRST: herbivore moves to its desired spot
+	var nextSpace = this.getNextSpace();  //gets coords of next square that creature will move to
 	var newX = nextSpace[0];
 	var newY = nextSpace[1];
 	
-	var specie = jsEco.getWorldSpecie(newX, newY);
+	var specie = jsEco.getWorldSpecie(newX, newY);  //see if there's another creature at nextSpace
 
 	if (specie !== undefined)
 	{
@@ -874,13 +946,14 @@ Herbivore.prototype.act = function()
 	}
 	else
 	{
-		/* Remove current 'me' from the map, update position and push new 'me' to the map */
+		/* Remove current herbivore from the map, update position and push new herbivore to the map */
 		jsEco.removeWorldSpecie(this, false);
 		this.posX = newX;
 		this.posY = newY;
 		jsEco.addWorldSpecie(this, false)
 	}
-	
+
+	//SECOND: Herbivore decides whether or not it wants to eat the grass. Eats when it makes a decision.
 	if (rand(0, 1) < this.genome.feedRate)
 	{
 		/* Get the grass for this position, if its rotten and this herbivore does not realize it, this herbivore may get sick */ 
@@ -888,7 +961,7 @@ Herbivore.prototype.act = function()
 		
 		if (grass.rotten)
 		{
-			/* If this herbivore is not smart enough to see it AND its gene its sickrate is valid */
+			/* If this herbivore is not smart enough to see it AND its gene for sickrate is valid */
 			if (!this.isSick && rand(0, 1) < this.genome.smartness && rand(0, 1) < this.genome.sickRate)
 			{
 				this.isSick = true;
@@ -901,7 +974,8 @@ Herbivore.prototype.act = function()
 				return;
 			}
 		}
-		
+
+		//eats the grass
 		if (this.isSick)
 			this.food += grass.consume((this.maxFood - this.food) / 2);
 		else
@@ -914,11 +988,16 @@ function Grass()
 	this.growthRate = GrassGene.growthRate[0];
 	this.decayRate = GrassGene.decayRate[0];
 
+	//Amount of food that the grass can give to whatever eats it. Increases over time.
+	//It's initialized at a random value
 	this.foodValue = rand(0, GrassGene.maxFoodValue);
 	
 	if (Settings.grassRotts)
 	{
+		//rate of how rottenValue increases per step
 		this.rottenRate = rand(GrassGene.growthRate[0], GrassGene.growthRate[1]);
+
+		//amount of food to be given to a newly grown grass
 		this.newFoodValue = 0;
 	
 		this.rottenValue = 0;
@@ -934,15 +1013,18 @@ Grass.prototype = {
 		if (this.foodValue >= GrassGene.maxFoodValue)
 			return Flags.HeavyVeg;
 		
-		return 1 << (this.foodValue/8 + 1);
+		return 1 << (this.foodValue/8 + 1);   //comes out to any of the other '-Veg' flag values
 	},
-	
+
+	//changes the state of the grass over time
 	step: function()
 	{
 		if (Settings.grassRotts && this.rotten)
 		{
 			this.newFoodValue += this.growthRate;
-			
+
+			//before the value of a new grass is invoked, that value is accumulated in newFoodValue
+			//it will be officially not rotten somewhere between a value of 2 and 3
 			if (this.newFoodValue > rand(2, 3))
 			{
 				this.rotten = false;
@@ -959,15 +1041,16 @@ Grass.prototype = {
 
 			if (this.foodValue > GrassGene.maxFoodValue)
 			{
-				this.foodValue = GrassGene.maxFoodValue;
+				this.foodValue = GrassGene.maxFoodValue;   //food value of a grass can't go past a certain point
 				
 				if (Settings.grassRotts)
-					this.rottenValue += this.rottenRate;
+					this.rottenValue += this.rottenRate;   //starts to rot after hitting max
 			}
 			
 			if (this.growthRate > GrassGene.growthRate[0])
 				this.growthRate -= this.decayRate;
-		
+
+			//conditions for setting grass to rotten state (namely, when grass's rotten value goes over max)
 			if (Settings.grassRotts && this.rottenValue > GrassGene.maxRottenValue * (1+this.rottenRate))
 			{
 				this.rotten = true;
@@ -978,7 +1061,8 @@ Grass.prototype = {
 			}
 		}
 	},
-	
+
+	//simulates the grass being eaten
 	consume: function(maxAmount)
 	{
 		var amountConsumed = (this.foodValue > maxAmount) ? maxAmount : this.foodValue;
@@ -1002,19 +1086,21 @@ function View(globalContext, zoomContext, worldWidth, worldHeight)
 	this.worldHeight = worldHeight;
 	
 	this.entitiesBuffer = arrayRange(worldHeight); 	// Buffer of the last view to compare with the newest
-	this.entityFlags = arrayRange(worldHeight);		// Set flags to prevent redrawing of the whole map
+	this.entityFlags = arrayRange(worldHeight);		// Set flags to prevent redrawing of the whole map (different flags than EntitiesMap)
 	
 	this.innerViewBuffer = arrayRange(25);			// Buffer of the last zoomed view
 	
-	this.globalRectSize = 22;
-	this.zoomRectSize = 25;
-	
+	this.globalRectSize = 22;                       //big screen is 22x22 squares
+	this.zoomRectSize = 25;							//each square in zoomContext canvas is 25x25 px
+
+	//sets the red rectangle and the corresponding Zoom view in the center of the map
 	this.globalRectX = this.worldWidth/2 - this.globalRectSize/2;
 	this.globalRectY = this.worldHeight/2 - this.globalRectSize/2;
 	
 	this.drawn = 0;
 }
 View.prototype = {
+	//set the EntityFlags flags all to either true or false
 	setEntityFlags: function(toWhat)
 	{
 		for (var y = 0; y < this.worldHeight; y++)
@@ -1028,13 +1114,16 @@ View.prototype = {
 
 	draw: function(entitiesMap)
 	{
+		//traverses entitiesMap and updates the entitiesBuffer
 		for (var y = 0; y < this.worldHeight; y++)
 		{
 			for (var x = 0; x < this.worldWidth; x++)
 			{
 				if (entitiesMap[y][x] !== this.entitiesBuffer[y][x])
 				{
-					this.entitiesBuffer[y][x] = entitiesMap[y][x];					
+					this.entitiesBuffer[y][x] = entitiesMap[y][x];
+
+					//entityFlags marks changes in entitiesBuffer so only necessary redraws are made on corresponding squares
 					this.entityFlags[y][x] = true;
 				}
 			}
@@ -1042,7 +1131,7 @@ View.prototype = {
 		
 		this.drawGlobal();
 		this.drawZoom();
-		this.setEntityFlags(false);
+		this.setEntityFlags(false);   //everything is drawn to satisfy the 'true' flags, so reset all the flags to 'false'
 		
 		var _drawn = this.drawn;
 		this.drawn = 0;
@@ -1058,6 +1147,7 @@ View.prototype = {
 			
 		var brushes;
 
+		//traverse through all the squares within the red global rectangle
 		for (var y = this.globalRectY; y < this.globalRectY + this.globalRectSize; y++)
 		{
 			for (var x = this.globalRectX; x < this.globalRectX + this.globalRectSize; x++)
@@ -1066,6 +1156,7 @@ View.prototype = {
 				if (this.entityFlags[y] === undefined || this.entityFlags[y][x] !== true && !push)
 					continue;
 
+				//start drawing specified square within Zoom canvas
 				brushes = this.getBrushes(this.entitiesBuffer[y][x]);
 
 				this.zoomContext.beginPath();
@@ -1077,12 +1168,14 @@ View.prototype = {
 				
 				this.drawn++;
 				
-				if (brushes[1] !== undefined)
+				if (brushes[1] !== undefined)  //if there is a creature occupying the square (whose colored returned)
 				{
+					//draws the circle
 					this.zoomContext.beginPath();
 					this.zoomContext.arc((x - this.globalRectX) * this.zoomRectSize + 12, (y - this.globalRectY) * this.zoomRectSize + 12, 8, 0, Math.PI*2, false);
 					this.zoomContext.closePath();
-					
+
+					//colors the circle
 					this.zoomContext.fillStyle = brushes[1];
 					this.zoomContext.fill();
 
@@ -1091,7 +1184,8 @@ View.prototype = {
 			}
 		}
 	},
-	
+
+	//draws the minimap in the globalContext canvas
 	drawGlobal: function()
 	{
 		this.globalContext.beginPath();
@@ -1107,7 +1201,7 @@ View.prototype = {
 				if (this.entityFlags[y] === undefined || this.entityFlags[y][x] !== true)
 					continue;
 
-				brushes = this.getBrushes(this.entitiesBuffer[y][x]);				
+				brushes = this.getBrushes(this.entitiesBuffer[y][x]);
 				brush = (brushes[1] !== undefined) ? brushes[1] : brushes[0];
 				
 				this.globalContext.fillStyle = brush;
@@ -1119,16 +1213,17 @@ View.prototype = {
 		
 		this.drawZoomRect();
 	},
-	
+
+	//draws the red global Rectangle over the global map
 	drawZoomRect: function()
 	{
-		this.globalContext.beginPath();
+		this.globalContext.beginPath();  //starts drawing on Canvas
 			
 		for (var y = this.globalRectY; y <= this.globalRectY + this.globalRectSize; y += this.globalRectSize)
 		{
 			for (var x = this.globalRectX; x <= this.globalRectX + this.globalRectSize; x++)
 			{
-				this.globalContext.rect(x, y, 2, 2);
+				this.globalContext.rect(x, y, 2, 2); //draw method
 			}
 		}
 			
@@ -1140,14 +1235,15 @@ View.prototype = {
 			}
 		}
 
-		this.globalContext.closePath();
+		this.globalContext.closePath();  //ends drawing on Canvas
 			
 		this.globalContext.fillStyle = '#900000';
 		this.globalContext.fill();
 		
 		this.drawn++;
 	},
-	
+
+	//lets the zoom rectangle move around by updating its coordinates
 	updateZoomRect: function(posX, posY, relative)
 	{
 		// Relative = keyboard as we don't get co-ords
@@ -1159,16 +1255,19 @@ View.prototype = {
 		{
 			var targetX = this.globalRectX + posX;
 			var targetY = this.globalRectY + posY
-			
+
+			//set parameters to original global rectangle position coords
 			posX = this.globalRectX;
 			posY = this.globalRectY;
 		}
 		else
 		{
+			//target coordinates point back towards middle of global map
 			var targetX = posX - this.globalRectSize/2;
 			var targetY = posY - this.globalRectSize/2;
 		}
-		
+
+		//next four conditionals make sure that rectangle doesn't go out of bounds
 		if (targetX < 0)
 			targetX = 0;
 		
@@ -1180,7 +1279,8 @@ View.prototype = {
 		
 		if (posY + this.globalRectSize > this.worldHeight || targetY + this.globalRectSize > this.worldHeight)
 			targetY = this.worldHeight - this.globalRectSize;
-		
+
+		//leave method if rectangle can't move
 		if (this.globalRectX === targetX && this.globalRectY == targetY)
 			return;
 	
@@ -1197,13 +1297,17 @@ View.prototype = {
 			}
 		}
 
+		//make target coords equal globalRect coords
 		this.globalRectX = targetX;
 		this.globalRectY = targetY;
-		
+
+		//redraw
 		this.drawZoom(true);
 		this.drawGlobal();
 	},
-	
+
+	//using the flags in entitiesMap, this method returns the colors in which the square represented
+	//by the flag needs to be drawn with
 	getBrushes: function(flag)
 	{
 		var specieBrush;
