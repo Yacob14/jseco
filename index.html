@@ -67,6 +67,7 @@
 				<h2>Controls</h2>
 				<ul>
 					<li><strong>[s]</strong>: Spawn 20 herbivores</li>
+					<li><strong>[u]</strong>: Spawn 20 carnivores</li>
 					<li><strong>[r]</strong>: Reset the simulation</li>
 					<li><strong>[p]</strong>: Pause the simulation</li>
 					<li><strong>[c]</strong>: Continue the simulation</li>
@@ -90,6 +91,7 @@
 						<li><strong>Spawned:</strong> <span id="herbivore-spawn">0</span></li>
 						<li><strong>Born:</strong> <span id="herbivore-born">0</span></li>
 						<li><strong>Sick:</strong> <span id="herbivore-sick">0</span></li>
+						<li><strong>Eaten:</strong><span id="herbivore-eaten">0</span></li>
 						<ul style="display: none;">
 							<li><strong>Cured:</strong> <span id="herbivore-sick-cured">0</span></li>
 							<li><strong>Died:</strong> <span id="herbivore-sick-died">0</span></li>
@@ -98,7 +100,21 @@
 				</ul>
 				
 				<ul>
-					<li><strong>Grass availiable:</strong> <span>40000</span></li>
+					<li><strong>Carnivores alive:</strong> <span id="carnivores-alive">0</span></li>
+					
+					<ul>
+						<li><strong>Spawned:</strong> <span id="carnivore-spawn">0</span></li>
+						<li><strong>Born:</strong> <span id="carnivore-born">0</span></li>
+						<li><strong>Sick:</strong> <span id="carnivore-sick">0</span></li>
+						<ul style="display: none;">
+							<li><strong>Cured:</strong> <span id="carnivore-sick-cured">0</span></li>
+							<li><strong>Died:</strong> <span id="carnivore-sick-died">0</span></li>
+						</ul>
+					</ul>
+				</ul>
+				
+				<ul>
+					<li><strong>Grass available:</strong> <span>40000</span></li>
 					
 					<ul>
 						<li><strong>Rotten:</strong> <span id="grass-rotten">0 (0%)</span></li>
