@@ -55,6 +55,7 @@ function deviation(range)
 }
 
 var drawReady = 0;
+
 function drawTile(){
 	drawReady++;
 }
@@ -456,8 +457,7 @@ var jsEco = new function()
 		 82: R(eset)
 		 83: S(pawn)
 
-		 84: T (spawn carnivore)
-		 85: U (test function)*/
+		 85: U (spawn carnivore)*/
 
 		if (keyEvent.keyCode === 67)
 			continueStep();
@@ -469,10 +469,7 @@ var jsEco = new function()
 			spawnSpecieGroup(20, Herbivore);  //press 'S'
 
 		if (keyEvent.keyCode === 85)
-			spawnSpecieGroup(20, Carnivore);  //press 'U'
-
-		if (keyEvent.keyCode === 84)
-			runTest();                        //press 'T'
+			spawnSpecieGroup(10, Carnivore);  //press 'U'
 
 		if (keyEvent.keyCode === 80)
 			pauseStep();
@@ -481,20 +478,6 @@ var jsEco = new function()
 			return;
 
 		updateZoomRect(keyEvent.keyCode);
-	}
-	function runTest()
-	{
-		//traverse all creatures on map
-		for (var y = 0; y < World.height; y++)
-		{
-			for (var x = 0; x < World.width; x++)
-			{
-				if (world.speciesMap[y][x] !== undefined && world.speciesMap[y][x].type === Flags.Herbivore){
-					world.speciesMap[y][x].consume();
-					//window.alert("consumed");
-				}
-			}
-		}
 	}
 
 	function pauseStep()
@@ -731,6 +714,7 @@ function Specie(genome, posX, posY, born)
 	this.posX = posX;
 	this.posY = posY;
 	this.born = (born === undefined) ? false : born;
+	this.facingLeft = false;
 
 	this.age = 0;
 	this.sickNess = 0;
@@ -774,6 +758,8 @@ Specie.prototype = {
 
 		var decreaseFoodWith = this.genome.hungerRate * this.genome.size;
 
+		if (this.type === Flags.Carnivore) decreaseFoodWith /= 2; //carnivores have a harder time finding food, so they must go longer without eating
+
 		if (this.isSick)
 		{
 			this.sickNess++;   //sickness levels go up as long as creature is sick
@@ -793,7 +779,7 @@ Specie.prototype = {
 		//if (this.type === Flags.Herbivore)
 		this.food -= decreaseFoodWith;  //over time, creature gets hungrier (even more so when sick)
 
-		if ((this.age >= Math.floor(this.genome.lifeSpan) || this.food <= 0) /*&& this.type === Flags.Herbivore*/)   //check if it has starved or gotten too old
+		if ((this.age >= Math.floor(this.genome.lifeSpan) || this.food <= 0))   //check if it has starved or gotten too old
 		{
 			// #TODO: This is herbivores specific code
 			if (this.isSick)
@@ -805,35 +791,6 @@ Specie.prototype = {
 		}
 
 		return true;        //if still has food and has not passed life span, then it's still alive
-	},
-
-	//It doesn't look like this method is ever used....
-	findOpenSpace: function()
-	{
-		var openSpaceCount = 1;
-		var newX = 0;
-		var newY = 0;
-
-		//creature checks the four directions around its current position
-		for (var x = this.posX - 1; x <= this.posX + 1; x++)
-		{
-			for (var y = this.posY - 1; y <= this.posY + 1; y++)
-			{
-				if (x < 0 || y < 0 || x > World.width || y > World.height)
-					continue; //obviously the creature can't move beyond the map, so keeps searching
-
-				if (jsEco.getWorldFlag(x, y) <= GridFlags.RottenVeg)  //is this the right kind of space to move on?
-				{
-					if (rand(0, 1) < 1 / openSpaceCount++)  // a way to randomize whether creature moves or stays put
-					{
-						newX = x;
-						newY = y;
-					}
-				}
-			}
-		}
-
-		return (newX !== 0 && newY !== 0) ? [newX, newY] : false;
 	},
 
 	//gets coordinates of new square that species will move to
@@ -878,7 +835,7 @@ Specie.prototype = {
 				}
 			}
 		}
-
+		this.facingLeft = newX < this.posX;
 		return [newX, newY];  //these are the square coordinates the creature will move to
 	},
 
@@ -1009,7 +966,6 @@ Specie.prototype = {
 
 	consume: function()
 	{
-		//window.alert("in function?");
 		var amountConsumed = this.food;
 		jsEco.removeWorldSpecie(this, true, true);
 		return amountConsumed;
@@ -1087,7 +1043,7 @@ Herbivore.prototype.act = function()
 		this.posX = newX;
 		this.posY = newY;
 		jsEco.addWorldSpecie(this, false);
-		jsEco.getWorldGrass(this.posX, this.posY).scent = 100;
+		jsEco.getWorldGrass(this.posX, this.posY).scent = .5 * this.genome.size;
 	}
 
 	//SECOND: Herbivore decides whether or not it wants to eat the grass. Eats when it makes a decision.
@@ -1124,7 +1080,7 @@ function Carnivore(genome, posX, posY, born){
 	Specie.call(this, genome, posX, posY, born);
 
 	this.food = this.maxFood * .5;
-	this.genome.lifeSpan *= 2000;
+	this.genome.sightRange += 3;
 
 	this.type = Flags.Carnivore;
 	this.flag = this.type;
@@ -1132,13 +1088,13 @@ function Carnivore(genome, posX, posY, born){
 
 Carnivore.prototype = clone(Specie.prototype);
 
-Carnivore.prototype.getBias1 = Herbivore.prototype.getBias;
+//Carnivore.prototype.getBias = Herbivore.prototype.getBias;
 
 //the bias is the likelihood that a carnivore will move to a certain space
 //this method gets the bias at the space in the specified coordinates
 Carnivore.prototype.getBias = function(posX, posY)
 {
-	var bias = jsEco.getWorldGrass(posX, posY).scent;  //good idea?
+	var bias = 0; //good idea?
 
 	//presence of another creature in space also affects bias
 
@@ -1160,7 +1116,7 @@ Carnivore.prototype.getBias = function(posX, posY)
 	else
 	{
 		if (specie.type === Flags.Herbivore){
-			bias = 2 * (specie.food) * (1 - this.food/ this.maxFood);  // is (species.food/1) good idea?
+			bias = 2 * (specie.food/specie.maxFood) * (1 - this.food/ this.maxFood);
 		}
 		else{
 			var danger = specie.genome.size * specie.genome.thoughness;
@@ -1173,12 +1129,11 @@ Carnivore.prototype.getBias = function(posX, posY)
 
 	return bias;
 }
+//Carnivore.prototype.act = Herbivore.prototype.act;
 
-Carnivore.prototype.act5 = Herbivore.prototype.act;
-//#TODO
 Carnivore.prototype.act = function()
 {
-	//FIRST: carnivore moves to its desired spot
+	//FIRST: carnivore looks at spot and sees if it's occupied. If so, does it eat the target or mate with it or neither?
 	var nextSpace = this.getNextSpace();  //gets coords of next square that creature will move to
 	var newX = nextSpace[0];
 	var newY = nextSpace[1];
@@ -1190,14 +1145,14 @@ Carnivore.prototype.act = function()
 		if (specie.type == this.type && this.genome.isSameSpecies(specie.genome) && this.reproduce(specie))
 			return;
 
-		if (specie.type == Flags.Herbivore && rand(0, 1) < this.genome.feedRate){
+		else if (specie.type == Flags.Herbivore && rand(0, 1) < this.genome.feedRate){
 			var amountConsumed = specie.consume();
 			this.food = ((amountConsumed + this.food) > this.maxFood) ? this.maxFood : amountConsumed + this.food;
 			return; //good idea?
 		}
 	}
 
-	//actual movement
+	//SECOND: carnivore moves to nextSpace if it's empty
 	else{
 		jsEco.removeWorldSpecie(this, false);
 		this.posX = newX;
@@ -1287,8 +1242,8 @@ Grass.prototype = {
 				jsEco.changeWorldRottenGrass(1);
 			}
 		}
-
-		this.scent -= .25;
+		if (this.scent > 0)
+			this.scent -= .1;
 	},
 
 	//simulates the grass being eaten
@@ -1379,6 +1334,7 @@ View.prototype = {
 		var image;
 
 		//traverse through all the squares within the red global rectangle
+
 		for (var y = this.globalRectY; y < this.globalRectY + this.globalRectSize; y++)
 		{
 			for (var x = this.globalRectX; x < this.globalRectX + this.globalRectSize; x++)
@@ -1387,11 +1343,11 @@ View.prototype = {
 				if (this.entityFlags[y] === undefined || this.entityFlags[y][x] !== true && !push)
 					continue;
 
+				//get the image that the flag at this location refers to
 				image = this.getImage(this.entitiesBuffer[y][x], FlagImages);
 
 				this.zoomContext.beginPath();
 				this.zoomContext.drawImage(image[0], (x - this.globalRectX) * this.zoomRectSize, (y - this.globalRectY) * this.zoomRectSize);
-
 				this.zoomContext.closePath();
 
 				this.drawn++;
