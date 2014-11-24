@@ -65,7 +65,6 @@ var ImgSources = [
 	"jseco_tiles/fish_tiles/green1.jpg",
 	"jseco_tiles/fish_tiles/brown.jpg",
 	"jseco_tiles/fish_tiles/Fish.png",
-	"jseco_tiles/fish_tiles/FishLeft.png",
 	"jseco_tiles/Sturgeon/Sturgeon.png"
 ];
 
@@ -87,12 +86,8 @@ var fishImage = new Image();
 fishImage.src = ImgSources[3];
 fishImage.addEventListener('load', drawTile);
 
-var fishLeftImage = new Image();
-fishLeftImage.src = ImgSources[4];
-fishLeftImage.addEventListener('load', drawTile);
-
 var sturgeonImage = new Image();
-sturgeonImage.src = ImgSources[5];
+sturgeonImage.src = ImgSources[4];
 sturgeonImage.addEventListener('load', drawTile);
 
 /* 'Constants' */
@@ -450,9 +445,14 @@ var jsEco = new function()
 
 	function globalCanvasOnClick(mouseEvent)
 	{
-		/* Get relative co-ords */
-		var posX = mouseEvent.layerX - document.getElementById('global-canvas').offsetLeft;
-		var posY = mouseEvent.layerY - document.getElementById('global-canvas').offsetTop;
+		if (mouseEvent.offsetX && mouseEvent.offsetY){
+			var posX = mouseEvent.offsetX;
+			var posY = mouseEvent.offsetY;
+		}
+		else{
+			var posX = mouseEvent.layerX - document.getElementById('global-canvas').offsetLeft;
+			var posY = mouseEvent.layerY - document.getElementById('global-canvas').offsetTop;
+		}
 
 		view.updateZoomRect(posX, posY);
 	}
@@ -480,7 +480,7 @@ var jsEco = new function()
 			spawnSpecieGroup(20, Herbivore);  //press 'S'
 
 		if (keyEvent.keyCode === 85)
-			spawnSpecieGroup(7, Carnivore);  //press 'U'
+			spawnSpecieGroup(10, Carnivore);  //press 'U'
 
 		if (keyEvent.keyCode === 80)
 			pauseStep();
