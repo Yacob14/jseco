@@ -61,12 +61,12 @@ function drawTile(){
 }
 
 var ImgSources = [
-	"js/jseco_tiles/fish_tiles/green2.jpg",
-	"js/jseco_tiles/fish_tiles/green1.jpg",
-	"js/jseco_tiles/fish_tiles/brown.jpg",
-	"js/jseco_tiles/fish_tiles/Fish.png",
-	"js/jseco_tiles/fish_tiles/FishLeft.png",
-	"js/jseco_tiles/Sturgeon/Sturgeon.png"
+	"jseco_tiles/fish_tiles/green2.jpg",
+	"jseco_tiles/fish_tiles/green1.jpg",
+	"jseco_tiles/fish_tiles/brown.jpg",
+	"jseco_tiles/fish_tiles/Fish.png",
+	"jseco_tiles/fish_tiles/FishLeft.png",
+	"jseco_tiles/Sturgeon/Sturgeon.png"
 ];
 
 /* All the used tile images are preloaded */
@@ -110,6 +110,12 @@ var Flags = {
 	'Carnivore' : 512,
 	'SickCarnivore': 1024
 };
+
+var SpecieMax = {
+	128 : 1400,       //Herbivore max
+	512 : 1000		  //Carnivore max
+};
+
 var FlagColors = {
 	0: '#FFFFFF',
 	2: '#98FB98',
@@ -530,8 +536,6 @@ var jsEco = new function()
 				continue;
 
 			jsEco.addWorldSpecie(new type(Genome.getMutation(specieGenome), spawnX, spawnY, false), true, true);
-
-			//window.alert("spawned");
 		}
 	}
 
