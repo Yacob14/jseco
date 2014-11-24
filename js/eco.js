@@ -65,6 +65,7 @@ var ImgSources = [
 	"js/jseco_tiles/fish_tiles/green1.jpg",
 	"js/jseco_tiles/fish_tiles/brown.jpg",
 	"js/jseco_tiles/fish_tiles/Fish.png",
+	"js/jseco_tiles/fish_tiles/FishLeft.png",
 	"js/jseco_tiles/Sturgeon/Sturgeon.png"
 ];
 
@@ -86,8 +87,12 @@ var fishImage = new Image();
 fishImage.src = ImgSources[3];
 fishImage.addEventListener('load', drawTile);
 
+var fishLeftImage = new Image();
+fishLeftImage.src = ImgSources[4];
+fishLeftImage.addEventListener('load', drawTile);
+
 var sturgeonImage = new Image();
-sturgeonImage.src = ImgSources[4];
+sturgeonImage.src = ImgSources[5];
 sturgeonImage.addEventListener('load', drawTile);
 
 /* 'Constants' */
@@ -440,8 +445,8 @@ var jsEco = new function()
 	function globalCanvasOnClick(mouseEvent)
 	{
 		/* Get relative co-ords */
-		var posX = mouseEvent.offsetX;
-		var posY = mouseEvent.offsetY;
+		var posX = mouseEvent.layerX - document.getElementById('global-canvas').offsetLeft;
+		var posY = mouseEvent.layerY - document.getElementById('global-canvas').offsetTop;
 
 		view.updateZoomRect(posX, posY);
 	}
@@ -469,7 +474,7 @@ var jsEco = new function()
 			spawnSpecieGroup(20, Herbivore);  //press 'S'
 
 		if (keyEvent.keyCode === 85)
-			spawnSpecieGroup(10, Carnivore);  //press 'U'
+			spawnSpecieGroup(7, Carnivore);  //press 'U'
 
 		if (keyEvent.keyCode === 80)
 			pauseStep();
@@ -696,11 +701,12 @@ Genome.prototype = {
 		{
 			var geneName = SpecieGene[i][0];
 			var difference = Math.abs(this[geneName] - otherGenome[geneName]);
+			//var difference = 2;
 
 			if (difference === 0)
 				continue;
 
-			varience += difference / (this[geneName] - otherGenome[geneName]);
+			varience += (difference / (this[geneName] - otherGenome[geneName]));
 		}
 
 		return ((varience/SpecieGene.length) < this.allowedVarience);
@@ -758,8 +764,6 @@ Specie.prototype = {
 
 		var decreaseFoodWith = this.genome.hungerRate * this.genome.size;
 
-		if (this.type === Flags.Carnivore) decreaseFoodWith /= 2; //carnivores have a harder time finding food, so they must go longer without eating
-
 		if (this.isSick)
 		{
 			this.sickNess++;   //sickness levels go up as long as creature is sick
@@ -779,7 +783,7 @@ Specie.prototype = {
 		//if (this.type === Flags.Herbivore)
 		this.food -= decreaseFoodWith;  //over time, creature gets hungrier (even more so when sick)
 
-		if ((this.age >= Math.floor(this.genome.lifeSpan) || this.food <= 0))   //check if it has starved or gotten too old
+		if ((this.age >= Math.floor(this.genome.lifeSpan) || this.food <= 0) && this.immortal != true)   //check if it has starved or gotten too old
 		{
 			// #TODO: This is herbivores specific code
 			if (this.isSick)
@@ -869,7 +873,7 @@ Specie.prototype = {
 
 	canReproduce: function()
 	{
-		return (this.age > this.nextReproductionAge);
+		return (this.age > this.nextReproductionAge && this.food > this.maxFood *.5);
 	},
 
 	reproduce: function(targetSpecie)
@@ -978,6 +982,7 @@ function Herbivore(genome, posX, posY, born)
 	Specie.call(this, genome, posX, posY, born);  //call Specie constructor, where all instances of 'this' now refer to Herbivore object
 
 	this.food = this.maxFood * 0.5;  //herbivores all start at halfway hunger
+	//this.immortal = true;
 
 	this.type = Flags.Herbivore;
 	this.flag = this.type;
@@ -1013,8 +1018,8 @@ Herbivore.prototype.getBias = function(posX, posY)
 	}
 	else
 	{
-		var danger = specie.genome.size * specie.genome.thoughness;
-		var defense = this.genome.size * this.thoughness * 0.75;
+		var danger = specie.genome.size * specie.genome.toughness;
+		var defense = this.genome.size * this.genome.toughness * 0.75;
 
 		if (danger > defense)
 			bias -= 8;
@@ -1043,7 +1048,7 @@ Herbivore.prototype.act = function()
 		this.posX = newX;
 		this.posY = newY;
 		jsEco.addWorldSpecie(this, false);
-		jsEco.getWorldGrass(this.posX, this.posY).scent = .5 * this.genome.size;
+		jsEco.getWorldGrass(this.posX, this.posY).scent = 2 * this.genome.size;
 	}
 
 	//SECOND: Herbivore decides whether or not it wants to eat the grass. Eats when it makes a decision.
@@ -1080,7 +1085,10 @@ function Carnivore(genome, posX, posY, born){
 	Specie.call(this, genome, posX, posY, born);
 
 	this.food = this.maxFood * .5;
-	this.genome.sightRange += 3;
+	this.genome.sightRange += 40;  //carnivores need more range to see meat
+	this.genome.hungerRate /= 1; //carnivores have harder time finding food, so have them get hungry slowly
+
+	//this.immortal = true;
 
 	this.type = Flags.Carnivore;
 	this.flag = this.type;
@@ -1088,13 +1096,11 @@ function Carnivore(genome, posX, posY, born){
 
 Carnivore.prototype = clone(Specie.prototype);
 
-//Carnivore.prototype.getBias = Herbivore.prototype.getBias;
-
 //the bias is the likelihood that a carnivore will move to a certain space
 //this method gets the bias at the space in the specified coordinates
 Carnivore.prototype.getBias = function(posX, posY)
 {
-	var bias = 0; //good idea?
+	var bias = 0;
 
 	//presence of another creature in space also affects bias
 
@@ -1116,11 +1122,11 @@ Carnivore.prototype.getBias = function(posX, posY)
 	else
 	{
 		if (specie.type === Flags.Herbivore){
-			bias = 2 * (specie.food/specie.maxFood) * (1 - this.food/ this.maxFood);
+			bias += 2 * (specie.food/specie.maxFood) * (1 - this.food/ this.maxFood);
 		}
 		else{
-			var danger = specie.genome.size * specie.genome.thoughness;
-			var defense = this.genome.size * this.thoughness * 0.75;
+			var danger = specie.genome.size * specie.genome.toughness;
+			var defense = this.genome.size * this.genome.toughness * 0.75;
 
 			if (danger > defense)
 				bias -= 8;
@@ -1128,6 +1134,7 @@ Carnivore.prototype.getBias = function(posX, posY)
 	}
 
 	return bias;
+
 }
 //Carnivore.prototype.act = Herbivore.prototype.act;
 
@@ -1243,7 +1250,7 @@ Grass.prototype = {
 			}
 		}
 		if (this.scent > 0)
-			this.scent -= .1;
+			this.scent -= .2;
 	},
 
 	//simulates the grass being eaten
@@ -1285,6 +1292,12 @@ function View(globalContext, zoomContext, worldWidth, worldHeight)
 	this.drawn = 0;
 }
 View.prototype = {
+
+	testDraw: function(x, y)
+    {
+		this.globalContext.fillStyle('#FF0000');
+		this.globalContext.fillRect(x, y, 1, 1);
+    },
 
 	//set the EntityFlags flags all to either true or false
 	setEntityFlags: function(toWhat)
@@ -1345,23 +1358,16 @@ View.prototype = {
 
 				//get the image that the flag at this location refers to
 				image = this.getImage(this.entitiesBuffer[y][x], FlagImages);
-
-				this.zoomContext.beginPath();
 				this.zoomContext.drawImage(image[0], (x - this.globalRectX) * this.zoomRectSize, (y - this.globalRectY) * this.zoomRectSize);
-				this.zoomContext.closePath();
-
 				this.drawn++;
 
-				if (image[1] !== undefined && drawReady == ImgSources.length)  //if there is a creature occupying the square (whose colored returned)
+				if (image[1] !== undefined && drawReady === ImgSources.length)  //if there is a creature occupying the square (whose colored returned)
 				{
-
-					this.zoomContext.beginPath();
 					this.zoomContext.drawImage(image[1], (x - this.globalRectX) * this.zoomRectSize, (y - this.globalRectY) * this.zoomRectSize);
-					this.zoomContext.closePath();
-
+				}
 
 					this.drawn++;
-				}
+
 			}
 		}
 	},
