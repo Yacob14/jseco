@@ -61,6 +61,7 @@ function drawTile(){
 }
 
 var ImgSources = [
+	"jseco_tiles/fish_tiles/gray.jpg",
 	"jseco_tiles/fish_tiles/green2.jpg",
 	"jseco_tiles/fish_tiles/green1.jpg",
 	"jseco_tiles/fish_tiles/brown.jpg",
@@ -70,24 +71,28 @@ var ImgSources = [
 
 /* All the used tile images are preloaded */
 
+var grayImage = new Image();
+grayImage.src = ImgSources[0];
+grayImage.addEventListener('load', drawTile);
+
 var green2Image = new Image();
-green2Image.src = ImgSources[0];
+green2Image.src = ImgSources[1];
 green2Image.addEventListener('load', drawTile);
 
 var green1Image = new Image();
-green1Image.src = ImgSources[1];
+green1Image.src = ImgSources[2];
 green1Image.addEventListener('load', drawTile);
 
 var brownImage = new Image();
-brownImage.src = ImgSources[2];
+brownImage.src = ImgSources[3];
 brownImage.addEventListener('load', drawTile);
 
 var fishImage = new Image();
-fishImage.src = ImgSources[3];
+fishImage.src = ImgSources[4];
 fishImage.addEventListener('load', drawTile);
 
 var sturgeonImage = new Image();
-sturgeonImage.src = ImgSources[4];
+sturgeonImage.src = ImgSources[5];
 sturgeonImage.addEventListener('load', drawTile);
 
 /* 'Constants' */
@@ -113,7 +118,7 @@ var SpecieMax = {
 
 var FlagColors = {
 	0: '#FFFFFF',
-	2: '#98FB98',
+	2: '#704D4D',
 	4: '#32CD32',
 	8: '#228B22',
 	16: '#008000',
@@ -128,8 +133,8 @@ var FlagColors = {
 
 /* Tiles */
 var FlagImages = {
-	0: green1Image,
-	2: green2Image,
+	0: grayImage,
+	2: grayImage,
 	4: green2Image,
 	8: green2Image,
 	16: green1Image,
@@ -170,6 +175,23 @@ var SpecieGene = [
 	['sightRange', 			[3, 10]]
 ];
 
+var CarnivoreGene = [
+	['lifeSpan', 			[400, 500]],
+	['size', 				[10, 50]],
+	['reproductionSpan', 	[30, 40]],
+	['reproductionRate', 	[0.25, 1]],
+	['adultHood', 			[0.25, 0.5]],
+	['oldAge',				[0.5, 0.75]],
+	['feedRate', 			[0.25, 1]],
+	['hungerRate', 			[0.01, 0.08]],
+	['herdBias', 			[0.125, 1]],
+	['sickRate',			[0.3, 0.4]],
+	['smartness', 			[0.25, 1]],
+	['foodCapacity', 		[2, 8]],
+	['toughness', 			[0.125, 0.5]],
+	['sightRange', 			[10, 20]]
+];
+
 var Settings = {
 	'grassRotts': true,
 	'zoomRectMovementSpeed': 1,
@@ -196,13 +218,11 @@ function World()
 	this.rottenGrassCount = 0;
 
 	this.sickHerbivoresCount = 0;
-	/*this.sickHerbivoresCuredCount = 0;
-	 this.sickHerbivoresDiedCount = 0;*/
 
 	this.init();
 }
-World.width = 200;
-World.height = 200;
+World.width = 150;//200;
+World.height = 150;//200;
 
 World.prototype = {
 	init: function(reset)
@@ -243,27 +263,15 @@ World.prototype = {
 
 	update: function()
 	{
-		// Update each grass and push updates to entities map
+		// traverse all of the squares on the maps
 		for (var y = 0; y < World.height; y++)
 		{
-			for (var x = 0; x < World.width; x++)
+			for (var x = 0; x < World.width; x++) {
+				//Update each grass and push updates to entities map
 				this.grassMap[y][x].step();
-		}
-
-		//Update each creature's position to simulate movement
-		for (var y = 0; y < World.height; y++)
-		{
-			for (var x = 0; x < World.width; x++)
-			{
 				if (this.speciesMap[y][x] !== undefined)
 					this.speciesMap[y][x].move();
-			}
-		}
 
-		for (var y = 0; y < World.height; y++)
-		{
-			for (var x = 0; x < World.width; x++)
-			{
 				//remove dead creatures from the map
 				if (this.speciesMap[y][x] !== undefined)
 				{
@@ -281,7 +289,6 @@ World.prototype = {
 				}
 			}
 		}
-
 		return this.entitiesMap;   //everything is drawn with the entities map
 	},
 
@@ -310,6 +317,18 @@ World.prototype = {
 
 		this.speciesMap[specie.posY][specie.posX] = specie;        //adds newly created creature into physical map
 		this.entitiesMap[specie.posY][specie.posX] |= specie.type; //the type is all that is added to entities map
+	},
+
+	getEdibleGrass: function(){
+		var totalEdibleGrass = 0;
+		for (var i = 0; i < World.width; i++){
+			for (var j = 0; j < World.height; j++){
+				if (this.grassMap[i][j].getFlag() > 2)
+					totalEdibleGrass++;
+			}
+		}
+
+		return totalEdibleGrass;
 	},
 
 	removeSpecie: function(specie, isDead, isEaten)
@@ -368,6 +387,8 @@ World.prototype = {
 //here is where everything really starts
 var jsEco = new function()
 {
+	var secondsRemain = 5 * 60;
+
 	var globalCanvas = undefined;
 	var zoomCanvas = undefined;
 
@@ -385,10 +406,16 @@ var jsEco = new function()
 		globalCanvas = document.getElementById('global-canvas');
 		zoomCanvas = document.getElementById('zoom-canvas');
 
+		window.alert("There's a lot of fish around here, and soon they're going to eat everything! Press S to spawn sturgeons to eat the fish " +
+		"so the forest is still standing. However, don't let the fishes all get eaten either. This is all about keeping them alive. Can you " +
+		"keep everything in balance for five minutes?");
+
 		setEventHandlers();
 
 		world = new World(200,200); // globalCanvas.width, globalCanvas.height (these parameters aren't actually needed)
 		view = new View(globalCanvas.getContext('2d'), zoomCanvas.getContext('2d'), World.width, World.height);
+
+		randomSpawnSpecieGroup(20, Herbivore, 10);
 
 		interval = setInterval(step, 1000/Settings.FPS);  //CALLS STEP FUNCTION REPEATEDLY, ANIMATING THE MAPS
 	};
@@ -411,16 +438,6 @@ var jsEco = new function()
 	{
 		world.sickHerbivoresCount += value;
 	};
-	/*
-	 #TODO
-	 this.changeWorldSickHerbivoresCured = function(value)
-	 {
-	 world.sickHerbivoresCuredCount += value;
-	 }
-	 this.changeWorldSickHerbivoresDied = function(value)
-	 {
-	 world.sickHerbivoresDiedCount += value;
-	 }*/
 
 	this.getWorldSpecie = function(posX, posY)
 	{
@@ -435,6 +452,18 @@ var jsEco = new function()
 	this.removeWorldSpecie = function(specie, isDead, isEaten)
 	{
 		world.removeSpecie(specie, isDead, isEaten);
+	}
+
+	function timerTick() {
+		if (secondsRemain > 0) {
+			secondsRemain -= 1;
+		}
+		var minutes = Math.floor(secondsRemain/60);
+		var seconds = secondsRemain%60;
+		if (seconds < 10)
+			return minutes + ":0" + seconds
+		else
+			return minutes + ":" + seconds;
 	}
 
 	function setEventHandlers()
@@ -477,10 +506,7 @@ var jsEco = new function()
 			resetStep();
 
 		if (keyEvent.keyCode === 83)
-			spawnSpecieGroup(20, Herbivore);  //press 'S'
-
-		if (keyEvent.keyCode === 85)
-			spawnSpecieGroup(10, Carnivore);  //press 'U'
+			userSpawnSpecieGroup(20, Carnivore);  //press 'S'
 
 		if (keyEvent.keyCode === 80)
 			pauseStep();
@@ -502,6 +528,8 @@ var jsEco = new function()
 	function resetStep()
 	{
 		world.init(true);
+		randomSpawnSpecieGroup(20, Herbivore, 10);
+		secondsRemain = 5 * 60;
 	}
 
 	function continueStep()
@@ -510,12 +538,27 @@ var jsEco = new function()
 			interval = setInterval(step, 1000/Settings.FPS);
 	}
 
-	function spawnSpecieGroup(amount, type)
-	{
+	function userSpawnSpecieGroup(amount, type){
 		//point to roughly the center coordinates of the zoomRect
 		var zoomRectPos = view.getZoomRectPos();
 		var posX = zoomRectPos[0] + 12;
 		var posY = zoomRectPos[1] + 12;
+		spawnSpecieGroup(amount, type, [posX, posY]);
+	}
+
+	function randomSpawnSpecieGroup(amount, type, numGroups){
+		var i;
+		for (i = 0; i < numGroups; i++){
+			var posX = Math.floor(rand(0, World.width));
+			var posY = Math.floor(rand(0, World.height));
+			spawnSpecieGroup(amount, type, [posX, posY]);
+		}
+	}
+
+	function spawnSpecieGroup(amount, type, coordinates)
+	{
+		var posX = coordinates[0];
+		var posY = coordinates[1];
 
 		//spawning occurs within a 10x10 square centered at (posX, posY)
 		var minX = (posX - 5 < 0) ? 0 : posX - 5;
@@ -523,7 +566,7 @@ var jsEco = new function()
 		var maxX = (posX + 5 >= World.width) ? World.width : posX + 5;
 		var maxY = (posY + 5 >= World.width) ? World.height : posY + 5;
 
-		var specieGenome = Genome.getRandom();
+		var specieGenome = (type === Herbivore) ? Genome.getRandom(SpecieGene) : Genome.getRandom(CarnivoreGene);
 
 		for (var i = 0; i < amount; i++)
 		{
@@ -569,6 +612,17 @@ var jsEco = new function()
 		view.updateZoomRect(posX, posY, true);
 	}
 
+	function checkWinCondition(){
+		if (world.getEdibleGrass()/(World.width*World.height) < .01 || world.herbivoreCount === 0) {
+			window.alert("Game Over");
+			resetStep()
+		}
+		else if (secondsRemain === 0) {
+			window.alert("You Win!");
+			resetStep();
+		}
+	}
+
 	//this function is what "animates" the entire application. First part updates canvases, and second part updates html text
 	function step()
 	{
@@ -577,29 +631,19 @@ var jsEco = new function()
 
 		frameCount++;
 
+		checkWinCondition();
+
 		// Second has passed? Update info elements
 		if (frameCount == Settings.FPS)
 		{
-			document.getElementById('draw-calls').innerHTML = drawCalls/Settings.FPS + ' p/s';
-			document.getElementById('fps').innerHTML = Settings.FPS + ' p/s';
+
+			document.getElementById('time').innerHTML = "Time Remaining: " + timerTick();
+			document.getElementById('habitable-grass').innerHTML = "Habitable: " + round((100 * world.getEdibleGrass())/(World.width*World.height), 0) + "%";
 
 			document.getElementById('herbivore-alive').innerHTML = world.herbivoreCount;
-			document.getElementById('herbivore-spawn').innerHTML = world.herbivoresSpawned;
-			document.getElementById('herbivore-born').innerHTML = world.herbivoresBorn;
-			document.getElementById('herbivore-eaten').innerHTML = world.herbivoresEaten;
 
-			document.getElementById('carnivores-alive').innerHTML = world.carnivoreCount;   //This one keeps the other elements from updating! Why?!
-			document.getElementById('carnivore-spawn').innerHTML = world.carnivoresSpawned;
-			document.getElementById('carnivore-born').innerHTML = world.carnivoresBorn;
+			document.getElementById('carnivores-alive').innerHTML = world.carnivoreCount;
 
-			var sickHerbivoresPercent = (world.sickHerbivoresCount/world.herbivoreCount) * 100;
-			document.getElementById('herbivore-sick').innerHTML = world.sickHerbivoresCount + ' (' + (sickHerbivoresPercent === Infinity || sickHerbivoresPercent.toString() === 'NaN' ? 0 : round(sickHerbivoresPercent, 2)) + '%)';
-
-			//document.getElementById('herbivore-sick-cured').innerHTML = world.sickHerbivoresCuredCount;
-			//document.getElementById('herbivore-sick-died').innerHTML = world.sickHerbivoresDiedCount;
-
-			var rottenGrassPercent = (world.rottenGrassCount / 40000) * 100;
-			document.getElementById('grass-rotten').innerHTML = world.rottenGrassCount + ' (' + (rottenGrassPercent === Infinity || rottenGrassPercent === 0 ? 0 : round(rottenGrassPercent, 2)) + '%)';
 
 			drawCalls = 0;
 			frameCount = 0;
@@ -622,15 +666,15 @@ function Genome(genes)
 }
 
 //generates new 'genes' which are string of random numbers taken from the SpecieGene array
-//and uses them to return a new Genome object
-Genome.getRandom = function()
+//or the CarnivoreGene array and uses them to return a new Genome object
+Genome.getRandom = function(geneSet)
 {
 	var newGenes = {};
 	var currentGene = undefined;
 
-	for (var i = 0; i < SpecieGene.length; i++)
+	for (var i = 0; i < geneSet.length; i++)
 	{
-		currentGene = SpecieGene[i];
+		currentGene = geneSet[i];
 		newGenes[currentGene[0]] = rand(currentGene[1][0], currentGene[1][1]);
 	}
 
@@ -662,7 +706,7 @@ Genome.getCrossOver = function(specieA, specieB)
 }
 
 //returns a genome that has slight mutations from the genome in the parameter
-Genome.getMutation = function(oldGenome)
+Genome.getMutation = function(oldGenome, geneSet)
 {
 	var newGenes = {};
 	var geneName, i;
@@ -877,7 +921,10 @@ Specie.prototype = {
 
 	canReproduce: function()
 	{
-		return (this.age > this.nextReproductionAge && this.food > this.maxFood *.75);
+		if (this.type === Flags.Herbivore)
+			return (this.age > this.nextReproductionAge && this.food > this.maxFood * .5);
+		else
+			return (this.age > this.nextReproductionAge && this.food > this.maxFood * .33);
 	},
 
 	reproduce: function(targetSpecie)
@@ -1025,7 +1072,7 @@ Herbivore.prototype.getBias = function(posX, posY)
 		var danger = specie.genome.size * specie.genome.toughness;
 		var defense = this.genome.size * this.genome.toughness * 0.75;
 
-		if (danger > defense)
+		if (danger > defense && rand(0, 1) < this.genome.smartness)
 			bias -= 8;
 	}
 
@@ -1089,8 +1136,9 @@ function Carnivore(genome, posX, posY, born){
 	Specie.call(this, genome, posX, posY, born);
 
 	this.food = this.maxFood * .5;
-	this.genome.sightRange += 40;  //carnivores need more range to see meat
-	this.genome.hungerRate /= 2; //carnivores have harder time finding food, so have them get hungry slowly
+	//this.genome.sightRange += 23;  //carnivores need more range to see meat
+	//this.genome.hungerRate /= 2; //carnivores have harder time finding food, so have them get hungry slowly
+	//this.genome.reproductionSpan += 10;
 
 	//this.immortal = true;
 
@@ -1230,7 +1278,7 @@ Grass.prototype = {
 		}
 		else
 		{
-			this.foodValue += this.growthRate;
+			this.foodValue += this.growthRate * .5;
 
 			if (this.foodValue > GrassGene.maxFoodValue)
 			{
@@ -1253,8 +1301,6 @@ Grass.prototype = {
 				jsEco.changeWorldRottenGrass(1);
 			}
 		}
-		if (this.scent > 0)
-			this.scent -= .2;
 	},
 
 	//simulates the grass being eaten
