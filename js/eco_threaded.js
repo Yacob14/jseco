@@ -111,11 +111,6 @@ var Flags = {
 	'SickCarnivore': 1024
 };
 
-var SpecieMax = {
-	128 : 1400,       //Herbivore max
-	512 : 1000		  //Carnivore max
-};
-
 var FlagColors = {
 	0: '#FFFFFF',
 	2: '#704D4D',
